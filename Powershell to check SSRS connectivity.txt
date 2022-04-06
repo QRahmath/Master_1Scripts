@@ -1,0 +1,1 @@
+get-SPRSDatabase | select id, querytimeout,connectiontimeout, status, server, ServiceInstance

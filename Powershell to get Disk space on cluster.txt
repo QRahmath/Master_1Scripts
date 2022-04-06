@@ -1,0 +1,7 @@
+$Filter = @{Expression={$_.Name};Label="DiskName"}, `
+          @{Expression={$_.Label};Label="Label"}, `
+          @{Expression={$_.FileSystem};Label="FileSystem"}, `
+          @{Expression={[int]$($_.BlockSize/1KB)};Label="BlockSizeKB"}, `
+          @{Expression={[int]$($_.Capacity/1GB)};Label="CapacityGB"}, `
+          @{Expression={[int]$($_.Freespace/1GB)};Label="FreeSpaceGB"}
+Get-WmiObject Win32_Volume | Format-Table $Filter -AutoSize

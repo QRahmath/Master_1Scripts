@@ -1,0 +1,13 @@
+--This completes a silent install of a service pack to a specific instance
+E:\SQL_2008_R1_SP3\SQLServer2008SP3-KB2546951-x64-ENU.exe  /instancename=MYINST1 /quiet
+
+--This completes a silent install of a service pack to a specific instance
+E:\SQL_2008_R1_SP3\SQLServer2008SP3-KB2546951-x64-ENU.exe  /allinstances /quiet
+
+
+
+Go to the location you have the SP in  command prompt and then /allinstances this parameter depends on the 
+instancename if there are multiple or if only one just use the all 
+
+ 
+SQLServer2014-KB4052725-x64.exe /allinstances /quiet /IAcceptSQLServerLicenseTerms

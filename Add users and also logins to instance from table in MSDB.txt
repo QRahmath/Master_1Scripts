@@ -1,0 +1,368 @@
+The table in MSDB should be by the name   FROM [msdb].[dbo].[Securityaccounts]	like below.
+
+TeamName			Account					Production		Development		QA
+Accounting Team	HSFTS\GBL-Accounting Team	db_datareader	db_datareader	db_datareader
+Accounting Team	HSFTS\GBL-Accounting Team	db_datawriter	db_datawriter	db_datawriter
+Accounting Team	HSFTS\GBL-Accounting Team	db_ddladmin	db_ddladmin	db_ddladmin
+Analysis Team	HSFTS\GBL-Analysis Team	db_datareader	db_datareader	db_datareader
+App Ops Team	HSFTS\GBL-Application Operations	db_datareader	db_datareader	db_datareader
+Architecture Team	HSFTS\GBL-Architecture	db_datareader	db_datareader	db_datareader
+Architecture Team	HSFTS\GBL-Architecture	db_datawriter	db_datawriter	db_datawriter
+DB Ops Team	HSFTS\GBL-DB Operations	sysadmin	sysadmin	sysadmin
+
+
+
+
+
+
+/*
+Created By: RACHIT VARMA
+Purpose: to create windows login and group with required permission using reference table 'Account' under msdb.dbo.[Securityaccounts] database.
+Coveres single and multiple users/ groups creation
+*/
+/*
+Declaration part: defining the required variables that are being used in the script.
+*/
+Declare @count int
+Declare @count1 int
+Declare @maxCount int
+Declare @mapstatusval int
+Declare @mapexistsstatusval int
+Declare @schemastatusval int
+Declare @account varchar(100)
+DECLARE @create nvarchar(1000)
+Declare @environment varchar(20)
+Declare @dbname varchar(50)
+Declare @tblstatus table (mapstatus varchar(50))
+Declare @tblstatus1 table (schemastate varchar(50))
+
+Declare @dblist table (dboid int identity(1,1), dbname varchar(50))
+Declare @AccountAccessdblevel table (AccName varchar(50),AccAccess varchar(50))
+DECLARE @string TABLE (strr varchar(500))
+DECLARE @string1 TABLE (strr1 varchar(500))
+
+CREATE TABLE #AccountDetails(
+	[AccountID]  [int] IDENTITY(1,1) NOT NULL,
+	[AccountName] [varchar](50) Not NULL,
+	[AccountAccess] [Varchar] (50) Not Null
+	)
+
+CREATE TABLE #AccountMember(
+	[Ac_ID]  [int] IDENTITY(1,1) NOT NULL,
+	[AC_Account] [varchar](50) Not NULL
+	)
+
+Create table #serveraccess 
+(sv_id int identity(1,1) not null,
+sv_loginName varchar(50) not null,
+sv_Accesstype varchar(50) not null,
+sv_status int not null
+)
+
+Create table #DBlevelaccess 
+(dbo_id int identity(1,1) not null,
+dbo_loginName varchar(50) not null,
+dbo_Accesstype varchar(50) not null,
+dbo_status int not null
+)
+----------------------------------------------End of Declaration part--------------------------------------
+/*
+Defining intiale values to declared variables.
+*/
+set @mapstatusval=0
+set @schemastatusval=0
+set @mapexistsstatusval=0
+set @count=1
+set @count1=1
+/*
+Define the value of environment for which script is being run.
+For production value should be 'Prod', for QA server value should be 'QA' and for development value should be 'DEV'.
+*/
+set @environment ='Prod'
+
+
+delete from @dblist
+insert into @dblist (dbname) select name from sys.databases where database_id not in (1,2,4)  order by name
+
+
+-----------------Uncomment and use below portion when single or selected accounts or groups are to be affected or tested------
+--Insert into #AccountDetails ([AccountName],[AccountAccess]) select Account,Production 
+--from msdb.dbo.[Securityaccounts] with(nolock) where account in ('HSFTS\GBL-Accounting Team','HSFTS\GBL-Architecture')
+
+--Insert into #AccountMember ([AC_Account]) select distinct account from msdb.dbo.[Securityaccounts] with(nolock) 
+--where account in ('HSFTS\GBL-Accounting Team','HSFTS\GBL-Architecture')
+----------------------------------------END of Single or selected account portion---------------------------------------------
+
+------Multiple values will be running----------Need to Comment the below portion when single or selected accounts are being tested--------------
+If(@environment='Prod')
+Insert into #AccountDetails ([AccountName],[AccountAccess]) select Account,Production from msdb.dbo.[Securityaccounts] with(nolock) 
+where Production in (select name from sys.database_principals where type='R' and name!='PUBLIC') 
+Else If (@environment='QA')
+Insert into #AccountDetails ([AccountName],[AccountAccess]) select Account,QA from msdb.dbo.[Securityaccounts] with(nolock) 
+where QA in (select name from sys.database_principals where type='R' and name!='PUBLIC')
+Else If (@environment='Dev')
+Insert into #AccountDetails ([AccountName],[AccountAccess]) select Account,Development from msdb.dbo.[Securityaccounts] with(nolock) 
+where Development in (select name from sys.database_principals where type='R' and name!='PUBLIC')
+
+Insert into #AccountMember ([AC_Account]) select distinct account from msdb.dbo.[Securityaccounts] with(nolock)
+----------------------------------------End of Multiple value portion---------------------------------------------------------------------------
+
+select @maxcount=count(*) from #AccountMember with(nolock)
+----------------------------------------------End of Initialization part--------------------------------------
+/*
+First loop will be running accounts or group wise.
+*/
+
+while (@count<=@maxcount)
+BEGIN
+select @account=[AC_Account] from #accountmember with(nolock) where [Ac_ID]=@count
+
+------Checking and creating group or user at server level if it doesnt exists------------------
+
+IF  NOT EXISTS (SELECT * FROM master.dbo.syslogins WHERE name = @account)
+			BEGIN
+				Begin try
+				Set @Create='use master CREATE Login ['+@account+'] FROM Windows with default_database=[model];'
+				Exec sp_executesql @create
+				DECLARE @dbcreatename nvarchar(50)
+				DECLARE @dbcreateaccess nvarchar(50)
+				DECLARE abc_Cursor CURSOR FOR select dbname from  @dblist;
+				OPEN abc_Cursor;
+				FETCH NEXT FROM abc_Cursor into @dbcreatename;
+				WHILE @@FETCH_STATUS = 0
+				   BEGIN
+					  set @create='use ['+@dbcreatename+'] CREATE USER ['+@account+'] FOR LOGIN ['+@account+']  WITH DEFAULT_SCHEMA = ['+@account+'];'
+					  Exec sp_executesql @create
+					if exists (select [AccountAccess] from #AccountDetails where [AccountName]=@account)
+					BEGIN
+					DECLARE abc_Cursor1 CURSOR FOR select [AccountAccess] from #AccountDetails where [AccountName]=@account;
+					OPEN abc_Cursor1;
+					FETCH NEXT FROM abc_Cursor1 into @dbcreateaccess;
+					WHILE @@FETCH_STATUS = 0
+					   BEGIN
+						  set @create='use ['+@dbcreatename+ '] EXEC sp_addrolemember '+''''+@dbcreateaccess+''''+', '+ ''''+@account+'''' +';'
+						  Exec sp_executesql @create
+						  FETCH NEXT FROM abc_Cursor1 into @dbcreateaccess;
+					   END;
+					CLOSE abc_Cursor1;
+					deallocate   abc_cursor1;
+					END
+					FETCH NEXT FROM abc_Cursor into @dbcreatename;
+				   END;
+				CLOSE abc_Cursor;
+				deallocate   abc_cursor;
+				End try
+				Begin Catch
+				Print 'Windows User  ['+@Account+']  Does not exist.'
+				End Catch
+			END
+--------------Second loop will be running database wise for each and every account----------------------
+
+	while(@count1<=(select COUNT(*) from @dblist))
+	BEGIN TRY
+	
+		select @dbname=dbname from @dblist where dboid=@count1
+		
+		
+		set @create='use ['+@dbname+'] select distinct b.name from sys.server_principals a join sys.database_principals b 
+		on a.sid=b.sid  join  sys.database_role_members  c on b.principal_id!=c.member_principal_id  where b.name=a.name and 
+		b.name='+''''+@account+''''+' and a.type in (''U'',''G'') and (b.default_schema_name is null or b.default_schema_name='' '');'
+		
+		insert into @tblstatus (mapstatus) Exec sp_executesql @create
+		if exists (select * from @tblstatus) 
+		set @mapstatusval=1
+		DELETE FROM @tblstatus
+
+		set @Create='use ['+@dbname+']  SELECT name FROM  sys.schemas WHERE principal_id = USER_ID('+''''+@account+''''+');'
+		
+		insert into @tblstatus1 (schemastate) Exec sp_executesql @create
+		if exists (select * from @tblstatus1)
+		set @schemastatusval =1
+		
+
+		
+
+
+		
+		
+		set @Create ='use ['+@dbname+'] SELECT  prin.name,
+			isnull(USER_NAME(mem.role_principal_id),'''') AS AssociatedRole 
+			FROM sys.database_principals prin LEFT OUTER JOIN sys.database_role_members mem 
+			ON prin.principal_id=mem.member_principal_id
+			WHERE prin.sid IS NOT NULL and prin.sid NOT IN (0x00) and prin.is_fixed_role <> 1 
+			AND prin.name='+''''+@account+''''
+			BEGIN TRY
+			insert into @AccountAccessdblevel (AccName,AccAccess) Exec sp_executesql @create
+			END TRY
+			BEGIN CATCH
+			PRINT 'Collation issue in Database '+@dbname+' while running this query.'
+			END CATCH
+		
+		
+			if (@mapstatusval=1 and @schemastatusval=0)
+			BEGIN
+			set @create='USE ['+@dbname+']  ALTER USER ['+@account+'] WITH DEFAULT_SCHEMA = ['+@account+'];'
+			exec sp_executesql @create
+			END
+
+			if((@mapstatusval=0 and @schemastatusval=1)OR(@mapstatusval=1 and @schemastatusval=1))
+			BEGIN
+			set @create='USE ['+@dbname+']  ALTER AUTHORIZATION ON SCHEMA::['+@account+'] TO dbo ;'
+			exec sp_executesql @create
+			set @create='USE ['+@dbname+']  drop user ['+@account+'] ;'
+			exec sp_executesql @create
+			set @create='USE ['+@dbname+']  create user ['+@account+'] for login ['+@account+'] WITH DEFAULT_SCHEMA = ['+@account+'];'
+			exec sp_executesql @create
+			END
+
+			
+
+			if(@mapstatusval=0 and @schemastatusval=0)
+			BEGIN
+				if exists(select * from @AccountAccessdblevel where AccName!='' and (AccAccess='' or AccAccess is null))
+				BEGIN
+				set @create='USE ['+@dbname+']  drop user ['+@account+'] ;'
+				exec sp_executesql @create
+				set @create='USE ['+@dbname+']  create user ['+@account+'] for login ['+@account+'] WITH DEFAULT_SCHEMA = ['+@account+'];'
+				exec sp_executesql @create
+				set @create='USE ['+@dbname+']  exec sp_addrolemember ''db_datareader'','+''''+@account+''''+';'
+				exec sp_executesql @create
+				delete from @AccountAccessdblevel
+				set @Create ='use ['+@dbname+'] SELECT  prin.name,
+				isnull(USER_NAME(mem.role_principal_id),'''') AS AssociatedRole 
+				FROM sys.database_principals prin LEFT OUTER JOIN sys.database_role_members mem 
+				ON prin.principal_id=mem.member_principal_id
+				WHERE prin.sid IS NOT NULL and prin.sid NOT IN (0x00) and prin.is_fixed_role <> 1 
+				AND prin.name='+''''+@account+''''
+				insert into @AccountAccessdblevel (AccName,AccAccess) Exec sp_executesql @create
+				END 
+				set @create='use ['+@dbname+'] select distinct b.name from sys.server_principals a join sys.database_principals b 
+				on a.sid=b.sid  join sys.database_role_members  c on b.principal_id=c.member_principal_id  where b.name=a.name 
+				and b.name='+''''+@account+''''+' and a.type in (''U'',''G'') and b.default_schema_name is not null ;'
+				insert into @tblstatus (mapstatus) Exec sp_executesql @create
+				if exists (select * from @tblstatus) 
+				set @mapexistsstatusval=1
+				DELETE FROM @tblstatus
+				IF (@mapexistsstatusval=0)
+				BEGIN
+				set @create='USE ['+@dbname+']  create user ['+@account+'] for login ['+@account+'] WITH DEFAULT_SCHEMA = ['+@account+'];'
+				exec sp_executesql @create
+				END
+			END
+		
+			;with
+			cteAccountDBDetails (Account,Production,accessstatus) As
+			(
+			SELECT AccName,AccAccess,0 FROM @AccountAccessdblevel where AccName =@account
+			Except
+			select distinct Account,Production,0 from msdb.dbo.[Securityaccounts] where production In (select name from sys.database_principals where type='R' and name!='PUBLIC') and PRODUCTION !='NO'
+			and Account=@account
+			)
+			insert into #DBlevelaccess (dbo_loginName,dbo_Accesstype,dbo_status)
+			select Account,production,accessstatus from cteAccountDBDetails
+
+			insert into @string
+			select 'Use ['+@dbname+']  Exec sp_droprolemember '+''''+dbo_Accesstype+''''+','+''''+dbo_loginName+''''+';' from #DBlevelaccess where dbo_status=0
+			
+			;with
+			cteAccountDBDetails1 (Account,Production,accessstatus) As
+			(
+			select distinct Account,Production,1 from msdb.dbo.[Securityaccounts] where production In (select name from sys.database_principals where type='R' and name!='PUBLIC') and PRODUCTION !='NO'
+			and Account=@account
+			except
+			SELECT AccName,AccAccess,1 FROM @AccountAccessdblevel where AccName =@account
+			)
+			insert into #DBlevelaccess (dbo_loginName,dbo_Accesstype,dbo_status)
+			select Account,production,accessstatus from cteAccountDBDetails1
+
+			insert into @string
+			select 'Use ['+@dbname+']  Exec sp_addrolemember '+''''+dbo_Accesstype+''''+','+''''+dbo_loginName+''''+';' from #DBlevelaccess where dbo_status=1
+			
+			DECLARE @dboAccess nvarchar(500)
+			DECLARE dbo_Cursor CURSOR FOR select strr from @string
+			OPEN dbo_Cursor;
+			FETCH NEXT FROM dbo_Cursor into @dboAccess;
+			WHILE @@FETCH_STATUS = 0
+			   BEGIN
+				  execute sp_executesql @dboAccess
+				  FETCH NEXT FROM dbo_Cursor into @dboAccess;
+			   END;
+			CLOSE dbo_Cursor;
+			DEALLOCATE dbo_Cursor;
+
+					
+		DELETE FROM @string
+		DELETE FROM @tblstatus
+		DELETE FROM @tblstatus1
+		DELETE FROM @AccountAccessdblevel
+		DELETE from #DBlevelaccess
+		SET @mapstatusval=0
+		SET @schemastatusval=0
+		SET @mapexistsstatusval=0
+	SET @count1+=1
+	END TRY
+	BEGIN CATCH
+	PRINT 'There is some issue in changing the mapping for database:'+@dbname
+	SET @count1+=1
+	END CATCH
+
+SET @count1=1
+SET @count+=1
+END
+
+
+
+/* Start of logic to implement the server level permissions removal and also to add if not present.*/
+
+;with
+cteAccountDetails (Account,Production,accessstatus) As
+(
+SELECT p.name as [LoginName],r.name as Accesstype,0 FROM sys.server_principals r INNER JOIN sys.server_role_members m 
+ON r.principal_id = m.role_principal_id INNER JOIN sys.server_principals p 
+ON p.principal_id = m.member_principal_id where (p.name in (select [AC_Account] from #AccountMember)) and (p.type='G' or p.type='U')
+Except
+select distinct Account,Production,0 from msdb.dbo.[Securityaccounts] where production In (select name from sys.server_principals where type='R' and name!='PUBLIC')
+)
+insert into #serveraccess (sv_loginName,sv_Accesstype,sv_status)
+select Account,production,accessstatus from cteAccountDetails
+
+insert into @string1
+select 'Use master  Exec sp_dropsrvrolemember ['+sv_loginName+'], '+sv_Accesstype from #serveraccess where sv_status=0
+
+;with
+cteAccountDetails1 (Account,Production,accessstatus) As
+(
+select distinct Account,Production,1 from msdb.dbo.[Securityaccounts] where production In (select name from sys.server_principals where type='R' and name!='PUBLIC')
+except
+SELECT distinct p.name AS Account,r.name As Production,1 FROM sys.server_principals r INNER JOIN sys.server_role_members m 
+ON r.principal_id = m.role_principal_id INNER JOIN sys.server_principals p 
+ON p.principal_id = m.member_principal_id where (p.name in (select [AC_Account] from #AccountMember )) 
+and (p.type='G' or p.type='U'))
+insert into #serveraccess (sv_loginName,sv_Accesstype,sv_status)
+select Account,production,accessstatus from cteAccountDetails1
+
+insert into @string1
+select 'Use master  Exec sp_addsrvrolemember ['+sv_loginName+'], '+sv_Accesstype from #serveraccess where sv_status=1
+
+DECLARE @svrAccess nvarchar(500)
+DECLARE svr_Cursor CURSOR FOR select strr1 from @string1
+OPEN svr_Cursor;
+FETCH NEXT FROM svr_Cursor into @svrAccess;
+WHILE @@FETCH_STATUS = 0
+   BEGIN
+	  execute sp_executesql @svrAccess
+      FETCH NEXT FROM svr_Cursor into @svrAccess;
+   END;
+CLOSE svr_Cursor;
+DEALLOCATE svr_Cursor;
+
+-------------------END of server level permissions -------------------------------------------------
+
+DROP TABLE #AccountMember
+DROP TABLE #AccountDetails
+DROP TABLE #serveraccess
+DROP TABLE #DBlevelaccess
+
+/*
+End of Security script.
+*/

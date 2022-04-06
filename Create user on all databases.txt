@@ -1,0 +1,53 @@
+EXEC sp_MSForEachDB 
+'Declare @name varchar(100)
+ select @name = ''?''
+ PRINT @name
+ IF db_id(@name) > 4
+ BEGIN
+ USE ?
+ CREATE USER [HSFTS\GBL-Product Development Consultants] FOR LOGIN [HSFTS\GBL-Product Development Consultants];
+EXEC sp_addrolemember ''db_datareader'', ''HSFTS\GBL-Product Development Consultants''
+EXEC sp_addrolemember ''db_datawriter'', ''HSFTS\GBL-Product Development Consultants''
+EXEC sp_addrolemember ''db_ddladmin'', ''HSFTS\GBL-Product Development Consultants''
+ END'
+
+
+ 
+
+
+This one did not work so i used the above
+****************************************************************************************************************************
+
+
+
+
+
+SET NOCOUNT ON;
+
+DECLARE @user_name    SYSNAME
+        , @login_name SYSNAME;
+
+SELECT @user_name = 'user_name',
+       @login_name = 'login_name'
+
+SELECT '
+    USE ' + QUOTENAME(NAME) + ';
+
+    CREATE USER ' + QUOTENAME(@user_name)
+       + ' FOR LOGIN ' + QUOTENAME(@login_name)
+       + ' WITH DEFAULT_SCHEMA=[dbo];
+
+    EXEC sys.sp_addrolemember
+      ''db_datareader'',
+      ''' + QUOTENAME(@user_name) + ''';
+
+    EXEC sys.sp_addrolemember
+      ''db_denydatawriter'',
+      '''
+       + QUOTENAME(@user_name) + '''; 
+
+GO
+'
+FROM   sys.databases
+WHERE  database_id > 4
+       AND state_desc = 'ONLINE' 

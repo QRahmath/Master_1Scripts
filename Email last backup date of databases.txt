@@ -1,0 +1,74 @@
+--use msdb
+--drop table Lastbackupdate
+
+--enable TRIGGER [AUDIT_Tgr_MonitorChange]  ON ALL SERVER
+use msdb
+
+go
+
+ 
+
+create table Lastbackupdate (
+
+     [DatabaseName] [varchar](100) NOT NULL,
+
+     [LastBackUpDate] [varchar](100) NOT NULL)
+
+  
+insert into Lastbackupdate
+
+SELECT sdb.Name AS DatabaseName,
+COALESCE(CONVERT(VARCHAR(12), MAX(bus.backup_finish_date), 101),'-') AS LastBackUpDate
+FROM sys.sysdatabases sdb
+LEFT OUTER JOIN msdb.dbo.backupset bus ON bus.database_name = sdb.name
+GROUP BY sdb.Name
+
+
+     declare @tableHTML  nvarchar(max);
+
+     set @tableHTML =
+
+          N'<H3>Last backup date of Databases on - ' + @@SERVERNAME +'</H3>' +
+
+          N'<table border="1">' +
+
+          N'<tr><th>DatabaseName</th>' +
+
+          N'<th>LastBackUpDate</th></tr>' +
+
+          CAST ( ( SELECT td = [DatabaseName], '',
+
+                         
+                         td = [LastBackUpDate]
+
+                     FROM Lastbackupdate
+                     order by [LastBackUpDate] asc
+                     
+
+                     FOR XML PATH('tr'), TYPE
+
+          ) AS NVARCHAR(MAX) ) +
+
+          N'</table>' ;
+
+ 
+
+     EXEC msdb.dbo.sp_send_dbmail
+
+     @from_address='DO_NOT_REPLY_SHAREPOINT@aig.com',
+
+     --@recipients='Vinod.Jayachandran@aig.com',
+     @copy_recipients='yousufabrar.siddiqui@aig.com',
+
+     @subject = 'Date of last backup of All Databases',
+
+     @body = @tableHTML,
+
+     @body_format = 'HTML' ,
+
+     @profile_name='DBA'
+
+ 
+drop table Lastbackupdate
+
+

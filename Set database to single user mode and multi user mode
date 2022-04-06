@@ -1,0 +1,3 @@
+alter database adventureWorks set SINGLE_USER with rollback immediate
+
+ALTER DATABASE [dbName] SET MULTI_USER

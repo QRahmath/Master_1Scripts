@@ -1,0 +1,3 @@
+use msdb
+
+exec sysmail_delete_mailitems_sp @sent_status= 'unsent'

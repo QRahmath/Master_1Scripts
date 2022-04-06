@@ -1,0 +1,4 @@
+net use Z: \\cinf033.corp.ad.local\sqlbackups\DEV-TFSDB1 /USER:medimedia\tfsbkup Thisisasongthatneverends!
+forfiles -p "Z:" -s -m *.* /D -10 /C "cmd /c del @path"
+robocopy F:\SQLBackups Z: *.* /S /Z /NP /log:F:\Robocopy.log
+NET USE Z: /delete /y >NUL

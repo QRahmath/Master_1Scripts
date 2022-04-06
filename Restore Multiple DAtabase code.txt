@@ -1,0 +1,19 @@
+
+--RUN THIS ON Destination instance after copying files 
+
+--Change C:\ with the directory location where backup files reside.
+
+
+select 
+'Restore database ['
++db_name(A.dbid)+
+'] from disk = '+''''+'c:\'+db_name(A.dbid)+'.bak'+''''+' 
+with move '+''''+ Datafilename +''''+ ' TO '+''''+ datafile+ ''''+ ','+
+' move '+''''+ Logfilename +''''+ ' TO '+''''+ Logfile+ ''''+ ','+
+' NORECOVERY'  
+
+from 
+(select dbid, name DataFilename, filename Datafile from sysaltfiles where filename like '%.MDF') A
+join 
+(select dbid, name LogFilename, filename Logfile from sysaltfiles where filename like '%.LDF') B
+on A.dbid = B.dbid 

@@ -1,0 +1,25 @@
+
+-- this script was used when i was not able to RUN the index defrag job and it was failing with error Msg 1943, Level 16, State 1, Line 1
+--The index "PK_Server_Event" on table "Event" cannot be reorganized because page level locking is disabled.
+
+declare @dnname nvarchar(4000)
+declare @cmd Nvarchar(max)
+
+declare clr cursor 
+for select name from sys.databases
+
+open clr
+fetch clr into @dnname
+
+while @@fetch_status = 0
+
+begin
+
+Set @cmd = 'Use [' +@dnname+']'+Char(10)+ ' select db_name(), name from sys.indexes where name like'+ ''''+'PK_Server_Event'+''''
+Exec(@cmd)
+Select @dnname
+fetch Clr into @dnname
+end
+
+close clr
+deallocate clr

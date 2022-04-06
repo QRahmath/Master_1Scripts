@@ -1,0 +1,3 @@
+use [EnterpriseDBA]
+Update [dbo].[Databasenames]
+SET databasename4 = ISNULL(databasename4 , ' ')

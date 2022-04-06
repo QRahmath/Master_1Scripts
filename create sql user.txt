@@ -1,0 +1,12 @@
+CREATE LOGIN [iqdquery] WITH PASSWORD='I@mK1ng0ft!W',
+DEFAULT_DATABASE=[master],
+DEFAULT_LANGUAGE=[us_english]
+GO
+USE master;
+CREATE USER [iqdquery] FOR LOGIN [iqdquery];
+GO
+GRANT VIEW SERVER STATE TO [iqdquery];
+GRANT VIEW ANY DEFINITION TO [iqdquery];
+GRANT SELECT ON sys.sysaltfiles TO [iqdquery];
+GO
+

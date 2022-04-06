@@ -1,0 +1,2 @@
+SELECT * FROM fn_virtualservernodes() 
+If there is no result than its not clustered.

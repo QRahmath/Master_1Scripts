@@ -1,0 +1,10 @@
+;WITH EmptyRows AS     
+(      
+   SELECT SUM(row_count) AS [TotalRows],       
+          OBJECT_NAME(OBJECT_ID) AS TableName      
+   FROM sys.dm_db_partition_stats      
+   WHERE index_id = 0 OR index_id = 1      
+   GROUP BY OBJECT_ID      
+)      
+SELECT * FROM EmptyRows      
+WHERE [TotalRows] = 0

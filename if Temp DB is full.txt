@@ -1,0 +1,8 @@
+if temp db is full becuase of a transaction 
+
+dbcc opentran
+
+and then get the SPID and either commit the SPID or Kill it
+
+
+()

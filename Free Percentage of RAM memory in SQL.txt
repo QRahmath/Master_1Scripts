@@ -1,0 +1,46 @@
+--drop table MemoryInfo
+go
+create table MemoryInfo (
+
+     [Total Memory MB] bigint NOT NULL,
+
+     [Available Memory MB] bigint NOT NULL,
+
+     [% Memory Free] decimal(5,2) NOT NULL)
+
+ 
+
+insert into MemoryInfo
+
+SELECT total_physical_memory_kb/1024 as "Total Memory MB",
+
+       available_physical_memory_kb/1024 as "Available Memory MB",
+
+       available_physical_memory_kb/(total_physical_memory_kb*1.0)*100 AS "% Memory Free"
+
+FROM sys.dm_os_sys_memory
+
+ 
+
+declare @memfree float 
+
+select @memfree=[Available Memory MB] from MemoryInfo   
+
+--if (@memfree < 1000)
+
+begin
+
+ 
+
+     declare @strsubject varchar(100)
+
+     select @strsubject='Check memory usage on ' + @@SERVERNAME
+
+ 
+
+     
+end
+
+select * from MemoryInfo 
+
+drop table MemoryInfo

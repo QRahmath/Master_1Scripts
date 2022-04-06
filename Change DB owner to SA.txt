@@ -1,0 +1,25 @@
+
+ALTER AUTHORIZATION ON DATABASE::YourDatabaseName TO sa
+
+fasih 214 927 3419
+
+
+ama gouhar 281 804 8989
+
+
+
+
+SELECT 'ALTER AUTHORIZATION ON DATABASE::' + QUOTENAME(name) + ' TO [sa];' 
+ from sys.databases
+     where name not in ('master', 'model', 'tempdb')
+
+
+*********************************************OR****************************************************
+
+
+EXEC sp_MSforeachdb
+@command1='use [?]; if db_name() not in (''master'', ''model'', ''tempdb'', ''msdb'', ''distribution'') exec sp_changedbowner ''sa'''
+go
+
+
+3592208.31 MB

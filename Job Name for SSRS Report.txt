@@ -1,0 +1,20 @@
+--when a SSRS report has to be run but we dont want to change the time of subscription and all that
+--just run this with changing the name of the report get the job name of that report and run the job it will run the subscription
+
+SELECT 'EXEC [REPORTSERVER$RE].dbo.AddEvent @EventType=''TimedSubscription'', @EventData=''' + CAST(a.SubscriptionID AS VARCHAR(40)) + '''' AS ReportCommand
+,b.NAME AS JobName
+,a.SubscriptionID
+,e.NAME
+,e.Path
+,d.Description
+,d.LastStatus
+,d.EventType
+,d.LastRunTime
+,b.date_created
+,b.date_modified
+FROM [REPORTSERVER$RE].dbo.ReportSchedule AS a
+INNER JOIN msdb.dbo.sysjobs AS b ON CAST(a.ScheduleID AS SYSNAME) = b.NAME
+INNER JOIN [REPORTSERVER$RE].dbo.ReportSchedule AS c ON b.NAME = CAST(c.ScheduleID AS SYSNAME)
+INNER JOIN [REPORTSERVER$RE].dbo.Subscriptions AS d ON c.SubscriptionID = d.SubscriptionID
+INNER JOIN [REPORTSERVER$RE].dbo.CATALOG AS e ON d.Report_OID = e.ItemID
+WHERE e.NAME LIKE 'Affiliate Audit Report'

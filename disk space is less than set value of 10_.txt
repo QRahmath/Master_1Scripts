@@ -1,0 +1,137 @@
+sp_configure 'show advanced options', 1
+GO 
+RECONFIGURE;
+GO
+sp_configure 'Ole Automation Procedures', 1
+GO 
+RECONFIGURE;
+GO
+
+
+
+SET NOCOUNT ON
+
+DECLARE @hr int
+DECLARE @fso int
+DECLARE @drive char(1)
+DECLARE @odrive int
+DECLARE @TotalSize varchar(20)
+DECLARE @MB bigint ; SET @MB = 1048576
+
+CREATE TABLE #drives (
+drive char(1) PRIMARY KEY,
+FreeSpace int NULL,
+TotalSize int NULL)
+
+INSERT #drives(drive,FreeSpace) EXEC master.dbo.xp_fixeddrives
+
+EXEC @hr=sp_OACreate 'Scripting.FileSystemObject',@fso OUT
+
+IF @hr <> 0 EXEC sp_OAGetErrorInfo @fso
+
+DECLARE dcur CURSOR LOCAL FAST_FORWARD
+FOR SELECT drive from #drives
+ORDER by drive
+
+OPEN dcur
+FETCH NEXT FROM dcur INTO @drive
+WHILE @@FETCH_STATUS=0
+BEGIN
+
+EXEC @hr = sp_OAMethod @fso,'GetDrive', @odrive OUT, @drive
+
+IF @hr <> 0 EXEC sp_OAGetErrorInfo @fso
+
+EXEC @hr = sp_OAGetProperty @odrive,'TotalSize', @TotalSize OUT
+
+IF @hr <> 0 EXEC sp_OAGetErrorInfo @odrive
+
+UPDATE #drives
+SET TotalSize=@TotalSize/@MB
+WHERE drive=@drive
+
+FETCH NEXT FROM dcur INTO @drive
+END
+CLOSE dcur
+DEALLOCATE dcur
+
+EXEC @hr=sp_OADestroy @fso
+
+IF @hr <> 0 EXEC sp_OAGetErrorInfo @fso
+
+SELECT drive,
+FreeSpace as 'Free(MB)',
+TotalSize as 'Total(MB)',
+CAST((FreeSpace/(TotalSize*1.0))*100.0 as int) as 'Free(%)'
+FROM #drives
+ORDER BY drive
+
+--DROP TABLE #drives
+
+
+declare @FreePercentage int
+
+ Create table #temptable (
+ Drive varchar(500),
+ FreeSize varchar(500),
+ TotalSize varchar(500),
+ FreePercentage int)
+
+ Insert into #temptable(
+Drive,FreeSize,TotalSize,FreePercentage)
+
+
+SELECT drive,
+FreeSpace as 'Free(MB)',
+TotalSize as 'Total(MB)',
+CAST((FreeSpace/(TotalSize*1.0))*100.0 as int) as 'Free(%)'
+FROM #drives
+ORDER BY drive
+
+ 
+select @FreePercentage = FreePercentage from #temptable where FreePercentage < 10
+
+
+DECLARE @tableHTML1  NVARCHAR(MAX) ;
+
+BEGIN
+SET @tableHTML1 = 
+    N'<H2> DiskSpace on POADBP002 is less than set threshold 10%
+	' +
+    N'<table style = "font-family: Arial; font-size: 8pt" border = "1" cellspacing = "0" cellpadding = "2" width=80%>' +
+    N'<tr style = "background-color: Yellow; font-size: 10pt;"><th ALIGN="left">Drive Name</th><th ALIGN="left">Total(GB)</th><th ALIGN="left">Free(GB)</th><th ALIGN="left">Free(%)</th>' +
+    CAST ( ( SELECT  td = Drive, '',
+			 td = TotalSize/1024, '',
+			 td = FreeSize/1024,  '',
+			 td = FreePercentage, ''
+	        FROM #temptable
+			where FreePercentage < 10
+    FOR XML PATH('tr'), TYPE 
+    ) AS NVARCHAR(MAX) ) +
+    N'</table>';
+
+
+
+if @FreePercentage < 10
+EXEC msdb.dbo.sp_send_dbmail 
+	@profile_name = 'DbOPS',
+	@recipients='yousufsiddiqui@hsfranchise.com',
+	@subject = 'DiskSpace Alert on POADBP002',
+    @body = @tableHTML1,
+    @body_format = 'HTML' ;  
+
+END
+
+drop table #temptable
+
+DROP TABLE #drives
+
+go
+sp_configure 'Ole Automation Procedures', 0
+GO 
+RECONFIGURE;
+GO
+sp_configure 'show advanced options', 0
+GO 
+RECONFIGURE;
+GO

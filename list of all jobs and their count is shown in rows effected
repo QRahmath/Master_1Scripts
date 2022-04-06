@@ -1,0 +1,2 @@
+USE msdb
+EXEC dbo.sp_help_job

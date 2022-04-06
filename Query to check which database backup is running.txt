@@ -1,0 +1,4 @@
+select	DatabaseName = db_name(R.database_id),T.text , R.percent_complete, R.Command,  R.Status
+		, R.cpu_time, R.total_elapsed_time
+from	sys.dm_exec_requests R
+		cross apply sys.dm_exec_sql_text(R.sql_handle) T where text like 'Backup%'

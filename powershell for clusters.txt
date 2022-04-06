@@ -1,0 +1,21 @@
+--we need to first run this to get info about clusters
+
+import-module failoverclusters
+
+
+
+--to get cluster group
+Get-ClusterGroup
+
+
+
+--to get list of cluster resource
+Get-ClusterResource
+
+
+--to get cluster node names
+
+Get-ClusterNode
+
+
+--

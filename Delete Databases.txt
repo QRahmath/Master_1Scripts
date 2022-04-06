@@ -1,0 +1,13 @@
+SELECT  dropdbcolumn,iDENTITY
+(INT) n INTO ##temp FROM [EnterpriseDBA].[dbo].[Databasenames]
+
+DECLARE @i INT = 1,@DBNAME VARCHAR(20)
+WHILE @i <= (SELECT MAX(n) FROM ##temp)
+BEGIN
+SELECT @DBNAME = dropdbcolumn FROM ##temp WHERE n = @i
+EXEC ('drop DATABASE '+ @DBNAME)
+SET @i = @i + 1
+END
+DROP TABLE ##temp
+
+

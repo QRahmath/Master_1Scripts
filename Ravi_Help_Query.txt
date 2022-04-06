@@ -1,0 +1,92 @@
+ORIGINAL QUERY
+
+SELECT * FROM sys.dm_io_virtual_file_stats(DB_ID(N'AdventureWorks2012'), 2)
+
+*********************************************************************************************************************
+Then the query Umesh Made without cursor
+
+EXEC sp_MSforeachdb @command1="SELECT * FROM sys.dm_io_virtual_file_stats(DB_ID(N'?'), 2)"
+
+*********************************************************************************************************************
+Then query with cursor
+
+DECLARE @DB_Name varchar(100) 
+DECLARE @Command nvarchar(200)
+DECLARE database_cursor CURSOR FOR 
+SELECT name 
+FROM MASTER.sys.sysdatabases
+
+OPEN database_cursor
+
+FETCH NEXT FROM database_cursor INTO @DB_Name
+
+WHILE @@FETCH_STATUS = 0 
+BEGIN 
+     SELECT @Command = 
+     
+      'SELECT * FROM sys.dm_io_virtual_file_stats(DB_ID('+ '''' + @db_name+ '''' + '), 2)'
+ -- print @command
+         EXEC sp_executesql @Command
+
+     FETCH NEXT FROM database_cursor INTO @DB_Name 
+END
+
+CLOSE database_cursor 
+DEALLOCATE database_cursor
+
+
+
+
+*********************************************************************************************************************
+
+But even after creating the cursor we were getting seperate results which were difficult to copy to excel so ravi changed it 
+
+
+ Create table #temptable (
+ database_id Int,
+ File_id Int,
+ sample_ms varchar(50),
+ num_of_reads varchar(50),
+
+ num_of_bytes_read varchar(50),
+ io_stall_read_ms varchar(50),
+ num_of_writes varchar(50),
+ num_of_bytes_written varchar(50),
+ io_stall_write_ms varchar(50),
+ io_stall varchar(50),
+ size_on_disk_bytes varchar(50),
+ file_handle varchar(50))
+
+DECLARE @DB_Name varchar(100) 
+DECLARE @Command nvarchar(200)
+DECLARE database_cursor CURSOR FOR 
+SELECT name 
+FROM MASTER.sys.sysdatabases
+
+OPEN database_cursor
+
+FETCH NEXT FROM database_cursor INTO @DB_Name
+
+WHILE @@FETCH_STATUS = 0 
+BEGIN 
+     SELECT @Command = 
+     
+     ' SELECT * FROM sys.dm_io_virtual_file_stats(DB_ID('+ '''' + @db_name+ '''' + '), 2)'
+  
+ -- print @command	
+		Insert into #temptable(
+ database_id ,File_id ,sample_ms,num_of_reads ,num_of_bytes_read,io_stall_read_ms ,
+ num_of_writes ,num_of_bytes_written ,io_stall_write_ms , io_stall , size_on_disk_bytes , file_handle)
+         EXEC sp_executesql @Command
+
+     FETCH NEXT FROM database_cursor INTO @DB_Name 
+END
+
+CLOSE database_cursor 
+DEALLOCATE database_cursor
+
+
+ select * from #temptable
+ drop table #temptable
+
+

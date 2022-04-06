@@ -1,0 +1,55 @@
+create table DBGrowthSP
+([DBName] nvarchar(256),
+[EarliestDate]nvarchar(256),
+[LatestDate]nvarchar(256),
+[DaySpan]nvarchar(256),
+[EarliestDBSize]nvarchar(256),
+[LatestDBSize]nvarchar(256),
+[DBSizeChange]nvarchar(256),
+[PercentChange]nvarchar(256));
+
+
+insert into DBGrowthSP
+exec [dbo].[GetDBGrowthSummary]
+
+
+DECLARE @xml NVARCHAR(MAX)
+DECLARE @body NVARCHAR(MAX)
+
+SET @xml = CAST(( SELECT 
+[DBName] AS 'td','',
+[EarliestDate] AS 'td','',
+[LatestDate] AS 'td','',
+[DaySpan] as 'td','',
+[EarliestDBSize] AS 'td','',
+[LatestDBSize] as 'td','',
+[DBSizeChange] as 'td','',
+[PercentChange] as 'td'
+       
+FROM DBGrowthSP
+
+--ORDER BY PercentChange asc 
+FOR XML PATH('tr'), ELEMENTS ) AS NVARCHAR(MAX))
+
+
+SET @body ='<html><body><H2>Dev Environment Database Growth Summary </H2>
+<table border = 1> 
+<tr>
+<th> DBName </th> <th> EarliestDate </th> <th> LatestDate </th> <th> DaySpan </th>
+<th> EarliestDBSize </th>
+<th> LatestDBSize </th> <th> DBSizeChange </th> <th> PercentChange </th>
+</tr>'    
+ 
+SET @body = @body + @xml +'</table></body></html>'
+
+EXEC msdb.dbo.sp_send_dbmail
+    @profile_name = 'DBA',
+    @body = @body,
+    @body_format ='HTML',
+    @recipients = 'yousufabrar.siddiqui@aig.com',
+    @subject = 'Database Growth Summary AWCCDSSQLSHPT02\AWCCDSSQLSHPT02',
+    --@query = N'select * from dbo.DBGrowthSP;',
+    @attach_query_result_as_file = 0
+    --@query_attachment_filename = 'Growth.xls'
+
+drop table DBGrowthSP

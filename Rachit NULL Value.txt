@@ -1,0 +1,30 @@
+This is the good query where he added ab.name is not null in last
+
+Select ab.Name as BrokerID, ab.StateCode, aeb.New_IsDisplayed,aeb.New_DBA as BrokerName, Line1 as StreetAddress1, Line2 as StreetAddress2, City, StateOrProvince as State, PostalCode as Zipcode, ab.Telephone1 as PrimaryPhone, aeb.New_TollFree as TollFreeNum, ab.fax as FaxNum, EMailAddress1 as EMailAddress, ub.New_website as WebsiteURL
+FROM  PRERS_PREA_MSCRM.[dbo].[AccountBase] ab
+ INNER JOIN PRERS_PREA_MSCRM.[dbo].[AccountExtensionBase] aeb
+ ON ab.Accountid = aeb.AccountId
+inner join PRERS_PREA_MSCRM.[dbo].[CustomerAddressBase] cb
+    on cb.[ParentId]  = ab.accountid and [AddressNumber] = 1
+ inner join PRERS_PREA_MSCRM.[dbo].[CustomerAddressExtensionBase] ceb
+ on cb.[CustomerAddressId] = ceb.[CustomerAddressId]
+ Left outer join PRERS_PREA_MSCRM.[dbo].[New_URLExtensionBase] ub
+ on aeb.[new_primarywebsiteid]  = ub.[New_URLId]
+ where ab.AccountCategoryCode = '7' and aeb.new_country = '1'  and ab.Name is not Null
+
+
+
+
+This is the original query
+
+ Select ab.Name as BrokerID, ab.StateCode, aeb.New_IsDisplayed,aeb.New_DBA as BrokerName, Line1 as StreetAddress1, Line2 as StreetAddress2, City, StateOrProvince as State, PostalCode as Zipcode, ab.Telephone1 as PrimaryPhone, aeb.New_TollFree as TollFreeNum, ab.fax as FaxNum, EMailAddress1 as EMailAddress, ub.New_website as WebsiteURL
+FROM  PRERS_PREA_MSCRM.[dbo].[AccountBase] ab
+ INNER JOIN PRERS_PREA_MSCRM.[dbo].[AccountExtensionBase] aeb
+ ON ab.Accountid = aeb.AccountId
+inner join PRERS_PREA_MSCRM.[dbo].[CustomerAddressBase] cb
+    on cb.[ParentId]  = ab.accountid and [AddressNumber] = 1
+ inner join PRERS_PREA_MSCRM.[dbo].[CustomerAddressExtensionBase] ceb
+ on cb.[CustomerAddressId] = ceb.[CustomerAddressId]
+ Left outer join PRERS_PREA_MSCRM.[dbo].[New_URLExtensionBase] ub
+ on aeb.[new_primarywebsiteid]  = ub.[New_URLId]
+ where ab.AccountCategoryCode = '7' and aeb.new_country = '1'

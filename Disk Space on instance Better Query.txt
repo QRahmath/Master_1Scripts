@@ -1,0 +1,4 @@
+SELECT distinct volume_mount_point 
+    ,cast(available_bytes as decimal)/1073741824 as [Free Space_in_GB]
+FROM sys.master_files AS f
+CROSS APPLY sys.dm_os_volume_stats(f.database_id, f.file_id)

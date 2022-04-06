@@ -1,0 +1,6 @@
+USE [master]
+GO
+DECLARE	@return_value int
+EXEC	@return_value = [dbo].[GetDBGrowthSummary]
+SELECT	'Return Value' = @return_value
+GO

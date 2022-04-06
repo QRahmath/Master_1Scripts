@@ -1,0 +1,174 @@
+
+--#### LOGINS,USERS,ROLES (LUR) SCRIPT #### 
+--#### SCRIPT TESTED IN SQL SERVER 2000,2005,2008 AND 2008R2#### 
+SET ANSI_NULLS ON
+GO 
+SET QUOTED_IDENTIFIER ON
+GO 
+SET ANSI_PADDING ON
+GO 
+-- CREATING A TEMP TABLE TO LOAD WITH DATABASE ROLES 
+CREATE TABLE [TEMPDB].[DBO].[DB_ROLES]( 
+      [DBNAME] [SYSNAME] , 
+      [USERNAME] [SYSNAME] , 
+      [DB_OWNER] [VARCHAR](3) , 
+      [DB_ACCESSADMIN] [VARCHAR](3) , 
+      [DB_SECURITYADMIN] [VARCHAR](3) , 
+      [DB_DDLADMIN] [VARCHAR](3) , 
+      [DB_DATAREADER] [VARCHAR](3) , 
+      [DB_DATAWRITER] [VARCHAR](3) , 
+      [DB_DENYDATAREADER] [VARCHAR](3) , 
+      [DB_DENYDATAWRITER] [VARCHAR](3) , 
+      [DT_CREATE] [DATETIME] NOT NULL, 
+      [DT_UPDATE] [DATETIME] NOT NULL, 
+      [DT_REPORT] [DATETIME] NOT NULL CONSTRAINT [DF__DBROLES__CUR_DAT__3A179ED3]  DEFAULT (GETDATE()) 
+ ) ON [PRIMARY] 
+ GO 
+  
+INSERT INTO    [TEMPDB].[DBO].[DB_ROLES] 
+EXEC SP_MSFOREACHDB 
+'     SELECT  
+     ''?'' AS DBNAME, 
+       USERNAME, 
+      MAX(CASE ROLENAME WHEN ''DB_OWNER''         THEN ''YES'' ELSE ''NO'' END) AS DB_OWNER, 
+      MAX(CASE ROLENAME WHEN ''DB_ACCESSADMIN ''   THEN ''YES'' ELSE ''NO'' END) AS DB_ACCESSADMIN , 
+      MAX(CASE ROLENAME WHEN ''DB_SECURITYADMIN''  THEN ''YES'' ELSE ''NO'' END) AS DB_SECURITYADMIN, 
+      MAX(CASE ROLENAME WHEN ''DB_DDLADMIN''   THEN ''YES'' ELSE ''NO'' END) AS DB_DDLADMIN, 
+      MAX(CASE ROLENAME WHEN ''DB_DATAREADER''        THEN ''YES'' ELSE ''NO'' END) AS DB_DATAREADER, 
+      MAX(CASE ROLENAME WHEN ''DB_DATAWRITER''        THEN ''YES'' ELSE ''NO'' END) AS DB_DATAWRITER, 
+      MAX(CASE ROLENAME WHEN ''DB_DENYDATAREADER'' THEN ''YES'' ELSE ''NO'' END) AS DB_DENYDATAREADER, 
+      MAX(CASE ROLENAME WHEN ''DB_DENYDATAWRITER'' THEN ''YES'' ELSE ''NO'' END) AS DB_DENYDATAWRITER, 
+      CREATEDATE, 
+      UPDATEDATE, 
+      GETDATE() 
+        FROM ( 
+         SELECT B.NAME AS USERNAME, C.NAME AS ROLENAME, B.CREATEDATE, B.UPDATEDATE 
+              FROM    
+                  [?].DBO.SYSMEMBERS A   JOIN [?].DBO.SYSUSERS  B  ON A.MEMBERUID = B.UID 
+                  JOIN [?].DBO.SYSUSERS C ON A.GROUPUID = C.UID  
+                          )S    
+                 GROUP BY USERNAME, CREATEDATE, UPDATEDATE 
+           ORDER BY USERNAME'
+  -- RETRIVE LOGINS, USERS AND ROLES TOGETHER 
+SELECT  SERVERPROPERTY('SERVERNAME') AS [SERVERNAME], 
+B.NAME AS [LOGINNAME], 
+CASE B.SYSADMIN  WHEN '1' THEN 'YES' ELSE 'NO' END AS SYSADMIN, 
+CASE B.SECURITYADMIN WHEN '1' THEN 'YES' ELSE 'NO' END AS SECURITYADMIN, 
+CASE B.SETUPADMIN  WHEN '1' THEN 'YES' ELSE 'NO' END AS SETUPADMIN, 
+CASE B.PROCESSADMIN  WHEN '1' THEN 'YES' ELSE 'NO' END AS PROCESSADMIN, 
+CASE B.DISKADMIN  WHEN '1' THEN 'YES' ELSE 'NO' END AS DISKADMIN, 
+CASE B.DBCREATOR  WHEN '1' THEN 'YES' ELSE 'NO' END AS DBCREATOR, 
+CASE B.BULKADMIN  WHEN '1' THEN 'YES' ELSE 'NO' END AS BULKADMIN, 
+B.DBNAME AS [DEFAULT_DBNAME], 
+A.* INTO #LOGINS FROM [TEMPDB].[DBO].[DB_ROLES] A RIGHT JOIN MASTER..SYSLOGINS B ON A.USERNAME=B.NAME
+  
+--WHERE B.ISNTUSER=1  --INCLUDE TO EXCLUDE THE SQL LOGINS 
+ --SELECT DISTINCT Servername, Loginname FROM #LOGINS --where loginname not like '%##MS%'
+ --SELECT DISTINCT Servername, Loginname FROM #LOGINS where loginname not like '%##%'  and loginname not like '%NT SERVICE%' ORDER BY [LOGINNAME] 
+--SELECT DISTINCT Servername, Loginname, Sysadmin, SecurityAdmin, SetupAdmin, ProcessAdmin, DiskAdmin, BulkAdmin FROM #LOGINS  where loginname not like '%svc%'  and loginname not like '%NT%' and (Sysadmin = 'YES' or SecurityAdmin = 'YES' or SetupAdmin= 'YES' or ProcessAdmin= 'YES' or DiskAdmin= 'YES' or BulkAdmin = 'YES') ORDER BY [LOGINNAME] 
+--SELECT DISTINCT Servername, Loginname, Sysadmin, DB_OWNER, DB_ACCESSADMIN , DB_SECURITYADMIN, DB_DDLADMIN,  DB_DATAREADER, DB_DATAWRITER, DB_DENYDATAREADER, DB_DENYDATAWRITER FROM #LOGINS  where   sysadmin = 'NO' and loginname not like '%svc%'  and loginname not like '%NT%' and (DB_OWNER = 'YES' or DB_ACCESSADMIN = 'YES' or  DB_SECURITYADMIN = 'YES' or  DB_DDLADMIN = 'YES' or   DB_DATAREADER = 'YES' or  DB_DATAWRITER = 'YES' or  DB_DENYDATAREADER = 'YES' or  DB_DENYDATAWRITER = 'YES')   ORDER BY [LOGINNAME] 
+
+--------------SCRIPT END----------------------- 
+
+---- send mail message -----
+begin
+  SET NOCOUNT off
+
+DECLARE @tableHTML1  NVARCHAR(MAX) ;
+SET @tableHTML1 = 
+    N'<H2>Production  ' + @@ServerName + ' SYS Admins Security Report</H2>' +
+   -- N'Total Number of Jobs failed: ' + CAST ((SELECT COUNT(*) FROM DBops_FailedJobs_OA  where datepart(dd,report_date) = (datepart(dd,getdate())))AS NVARCHAR(MAX) ) + 
+    N'<table style = "font-family: Arial; font-size: 8pt" border = "1" cellspacing = "0" cellpadding = "2" width=100%>' +
+
+	--SELECT DISTINCT Servername, Loginname, Sysadmin, SecurityAdmin, SetupAdmin, ProcessAdmin, DiskAdmin, BulkAdmin FROM #LOGINS  where loginname not like '%svc%'  and loginname not like '%NT%' and (Sysadmin = 'YES' or SecurityAdmin = 'YES' or SetupAdmin= 'YES' or ProcessAdmin= 'YES' or DiskAdmin= 'YES' or BulkAdmin = 'YES') ORDER BY [LOGINNAME] 
+
+
+    N'<tr style = "background-color: yellow; font-size: 10pt;">
+	<th ALIGN="left">Server Name</th>
+	<th ALIGN="left">Login Name</th>
+	<th ALIGN="left">Sysadmin</th>
+	<th ALIGN="left">SecurityAdmin</th>
+	<th ALIGN="left">SetupAdmin</th>
+	<th ALIGN="left">ProcessAdmin</th>
+	<th ALIGN="left">DiskAdmin</th>
+	<th ALIGN="left">BulkAdmin</th>' +
+    CAST ( ( SELECT DISTINCT td = Servername,       '',
+                    td =Loginname, '',
+                    td = Sysadmin, '',
+                    td = SecurityAdmin, '',
+                    td = SetupAdmin,'',
+					td = ProcessAdmin,'',
+					td = DiskAdmin,'',
+					td = BulkAdmin,''
+
+           FROM #LOGINS  where loginname not like '%svc%'  and loginname not like 'NT%' and (Sysadmin = 'YES' or SecurityAdmin = 'YES' or SetupAdmin= 'YES' or ProcessAdmin= 'YES' or DiskAdmin= 'YES' or BulkAdmin = 'YES') ORDER BY [LOGINNAME] 
+                                FOR XML PATH('tr'), TYPE 
+    ) AS NVARCHAR(MAX) ) +
+   N'</table>'
+
+	DECLARE @tableHTML2  NVARCHAR(MAX) ;
+	SET @tableHTML2 = 
+
+    N'<H2>Production ' + @@ServerName + ' Database Level Role Security Report</H2>' +
+    N'<table style = "font-family: Arial; font-size: 8pt" border = "1" cellspacing = "0" cellpadding = "2" width=100%>' +
+	N'<tr style = "background-color: yellow; font-size: 10pt;">
+	<th ALIGN="left">Server Name</th>
+	<th ALIGN="left">Login Name</th>
+	<th ALIGN="left">Sysadmin</th>
+	<th ALIGN="left">DB_OWNER</th>
+	<th ALIGN="left">DB_ACCESSADMIN</th>
+	<th ALIGN="left">DB_SECURITYADMIN</th>
+	<th ALIGN="left">DB_DDLADMIN</th>
+		<th ALIGN="left">DB_DATAREADER</th>
+			<th ALIGN="left">DB_DATAWRITER</th>
+				<th ALIGN="left">DB_DENYDATAREADER</th>
+	<th ALIGN="left">DB_DENYDATAWRITER</th>' +
+    CAST ( ( SELECT DISTINCT td = Servername,       '',
+                    td =Loginname, '',
+                    td = Sysadmin, '',
+                    td = DB_OWNER, '',
+                    td = DB_ACCESSADMIN,'',
+					td = DB_SECURITYADMIN,'',
+					td = DB_DDLADMIN,'',
+					td = DB_DATAREADER,'',
+										td = DB_DATAWRITER,'',
+															td = DB_DENYDATAREADER,'',
+																				td = DB_DENYDATAWRITER,''
+
+
+         FROM #LOGINS  where   sysadmin = 'NO' and loginname not like '%svc%'  and loginname not like 'NT%' and (DB_OWNER = 'YES' or DB_ACCESSADMIN = 'YES' or  DB_SECURITYADMIN = 'YES' or  DB_DDLADMIN = 'YES' or   DB_DATAREADER = 'YES' or  DB_DATAWRITER = 'YES' or  DB_DENYDATAREADER = 'YES' or  DB_DENYDATAWRITER = 'YES')   ORDER BY [LOGINNAME] 
+                                FOR XML PATH('tr'), TYPE 
+    ) AS NVARCHAR(MAX) ) +
+    N'</table>'
+
+	DECLARE @tableHTML3  NVARCHAR(MAX) ;
+	SET @tableHTML3 = 
+
+    N'<H2>Production ' + @@ServerName + ' Login Names</H2>' +
+    N'<table style = "font-family: Arial; font-size: 8pt" border = "1" cellspacing = "0" cellpadding = "2" width=100%>' +
+	N'<tr style = "background-color: yellow; font-size: 10pt;">
+	<th ALIGN="left">Server Name</th>
+	<th ALIGN="left">Login Name</th>'  +
+    CAST ( ( SELECT DISTINCT td = Servername,       '',
+                    td = loginName, ''
+         FROM #LOGINS  Where loginname not like '%##MS%' ORDER BY [LOGINNAME] 
+                                FOR XML PATH('tr'), TYPE 
+    ) AS NVARCHAR(MAX) ) +
+    N'</table>';
+
+
+	DECLARE @tableHTML  NVARCHAR(MAX) ;
+	set @tableHTML = @tableHTML1 + @tableHTML2 + + @tableHTML3;
+
+
+EXEC msdb.dbo.sp_send_dbmail 
+	-- @profile_name = 'dbops',
+	@recipients='yousufsiddiqui@hsfranchise.com',
+	 -- @copy_recipients='dag.db.team@brookfieldrps.com',
+    @subject = 'Production Security Status Report',
+    @body = @tableHTML,
+
+    @body_format = 'HTML' ;  
+end  
+DROP TABLE  [TEMPDB].[DBO].[DB_ROLES] 
+DROP TABLE  #LOGINS

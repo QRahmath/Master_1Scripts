@@ -1,0 +1,9 @@
+--1 in the first line enter the days 
+--2 enter the location and make sure the user has access to that location
+--3 change the .trn to the type of the file that has to be deleted
+
+
+$mydays = (Get-Date).AddDays(-5)
+$path = "F:\SQLBackups\"
+Get-Childitem -path $path -recurse -force | Where-Object { !$_.PSIsContainer -and $_.name -like "*.bake" -and $_.LastWriteTime -lt $mydays} | Remove-Item -Force
+
